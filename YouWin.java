@@ -53,9 +53,11 @@ public class YouWin
 				curLet = 'A';
 			else
 				curLet = lets[curPos];
+			/*
 			int[] letDisps = new int[remlets + 2];
 			letDisps[0] = 0;
 			letDisps[remlets + 1] = 26;
+			*/
 			mask = 1 << 19;
 			int k = 1;
 			for (int i = 0; i < len; i++)
