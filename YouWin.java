@@ -5,6 +5,7 @@ import static java.lang.Math.max;
 import static java.lang.Integer.bitCount;
 public class YouWin
 {
+	static final int PRUNE_WIDTH = 3;
 	static class State implements Comparable<State>
 	{
 		static String word;
@@ -46,13 +47,16 @@ public class YouWin
 			mask = (1 << (lastzero - firstzero) - 1) << lastzero;
 			est += bitCount(letters & mask);
 
-			int dist, mindist = 0;
+			int dist;
 			char curLet, newLet;
 			char[] lets = word.toCharArray();
 			if (letters == 0)
 				curLet = 'A';
 			else
 				curLet = lets[curPos];
+			int[] letDisps = new int[remlets + 2];
+			letDisps[0] = 0;
+			letDisps[remlets + 1] = 26;
 			mask = 1 << 19;
 			int k = 1;
 			for (int i = 0; i < len; i++)
@@ -63,13 +67,23 @@ public class YouWin
 					dist = newLet - curLet;
 					if (dist < 0)
 						dist += 26;
-					if (dist > 13)
-						dist = 26 - dist;
-					if (dist > mindist)
-						mindist = dist;
+					letDisps[k++] = dist;
 				}
 				mask >>>= 1;
 			}
+			Arrays.sort(letDisps);
+			int mindist = 25;
+			for (int i = 1; i < remlets + 1; i++)
+			{
+				int d1 = letDisps[i];
+				if (d1 > 13)
+					dist = (26 - d1) * 2 + letDisps[i - 1];
+				else
+					dist = d1 * 2 + 26 - letDisps[i + 1];
+				if (dist < mindist)
+					mindist = dist;
+			}
+			mindist = min(mindist, min(letDisps[0], 26 - letDisps[remlets + 1]));
 			est += mindist;
 
 			return (short)est;
@@ -193,7 +207,7 @@ public class YouWin
 	{
 		Scanner sc = new Scanner(System.in);
 		String word = sc.next();
-		PriorityQueue<State> q;
+		PriorityQueue<State> q, q2;
 		int n;
 		State cur;
 		int solutionValue;
@@ -204,6 +218,7 @@ public class YouWin
 			State.setWord(word);
 			solutionValue = naiveTry(word);
 			q = new PriorityQueue<State>(1 << n);
+			q2 = new PriorityQueue<State>(n);
 			q.add(new State());
 			while (!q.isEmpty())
 			{
@@ -228,7 +243,7 @@ public class YouWin
 							else
 							{
 								if (newitem.getMin() < solutionValue)
-									q.add(newitem);
+									q2.add(newitem);
 							}
 							// System.err.printf("    %s\n", newitem);
 						}
@@ -236,6 +251,10 @@ public class YouWin
 					
 					mask >>>= 1;
 				}
+
+				for (int i = 0; i < PRUNE_WIDTH && !q2.isEmpty(); i++)
+					q.add(q2.poll());
+				q2.clear();
 			}
 			// System.err.println((sol & FIRST_MASK) >>> 44);
 			System.out.println(solutionValue);
