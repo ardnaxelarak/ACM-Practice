@@ -10,18 +10,51 @@ public class YouWin
 		static int len;
 		static int finmask;
 		short weight;
+		short est;
 		int letters;
-		short curPos;
-		public State(int letters, short curPos, short weight)
+		byte curPos;
+
+		public State()
+		{
+			letters = 0;
+			curPos = 0;
+			weight = 0;
+			est = (short)len;
+		}
+
+		public State(int letters, byte curPos, short weight)
 		{
 			this.letters = letters;
 			this.weight = weight;;
 			this.curPos = curPos;
+			if (letters == finmask)
+				this.est = 0;
+			else
+			{
+				int est = len - bitCount(letters);
+				int check = letters ^ finmask;
+				int firstzero = Integer.numberOfLeadingZeros(check) - 12;
+				int lastzero = 19 - Integer.numberOfTrailingZeros(check);
+				int mask;
+				if (curPos < firstzero)
+				{
+					mask = (1 << (firstzero - curPos) - 1) << firstzero;
+					est += bitCount(letters & mask);
+				}
+				else if (curPos > firstzero)
+				{
+					mask = (1 << (curPos - firstzero) - 1) << curPos;
+					est += bitCount(letters & mask);
+				}
+				mask = (1 << (lastzero - firstzero) - 1) << lastzero;
+				est += bitCount(letters & mask);
+				this.est = (short)est;
+			}
 		}
 
 		public int compareTo(State o)
 		{
-			return weight - o.weight;
+			return (weight + est) - (o.weight + o.est);
 		}
 		
 		public String toString()
@@ -51,7 +84,7 @@ public class YouWin
 			finmask = ((1 << len) - 1) << (20 - len);
 		}
 
-		public State next(int pos, int mask)
+		public State next(byte pos, int mask)
 		{
 			char newLet = word.charAt(pos);
 			char curLet;
@@ -68,7 +101,7 @@ public class YouWin
 			int move = bitCount(letters & moveMask);
 			// System.err.printf("%2d %d\n", move, dist);
 			int newCost = weight + dist + move + 1;
-			return new State(letters | mask, (short)pos, (short)newCost);
+			return new State(letters | mask, pos, (short)newCost);
 		}
 	}
 
@@ -87,7 +120,7 @@ public class YouWin
 			State.setWord(word);
 			solutionValue = Integer.MAX_VALUE;
 			q = new PriorityQueue<State>(1 << n);
-			q.add(new State(0, (short)0, (short)0));
+			q.add(new State());
 			while (!q.isEmpty())
 			{
 				cur = q.poll();
@@ -95,7 +128,7 @@ public class YouWin
 				if (cur.weight > solutionValue)
 					break;
 				int mask = 1 << 19;
-				for (int i = 0; i < n; i++)
+				for (byte i = 0; i < n; i++)
 				{
 					if ((cur.letters & mask) == 0)
 					{
