@@ -9,6 +9,7 @@ public class YouWin
 	static class State implements Comparable<State>
 	{
 		static String word;
+		static boolean simple = false;
 		static int len;
 		static int finmask;
 		private static byte[] letDisps;
@@ -22,7 +23,7 @@ public class YouWin
 			letters = 0;
 			curPos = 0;
 			weight = 0;
-			est = (short)len;
+			est = calcEst();
 		}
 
 		private short calcEst()
@@ -31,59 +32,85 @@ public class YouWin
 				return (short)0;
 			int remlets = len - bitCount(letters);
 			int est = remlets;
-			int check = letters ^ finmask;
-			int firstzero = Integer.numberOfLeadingZeros(check) - 12;
-			int lastzero = 19 - Integer.numberOfTrailingZeros(check);
 			int mask;
-			if (curPos < firstzero)
+			if (letters != 0)
 			{
-				mask = (1 << (firstzero - curPos) - 1) << firstzero;
+				int check = letters ^ finmask;
+				int firstzero = Integer.numberOfLeadingZeros(check) - 12;
+				int lastzero = 19 - Integer.numberOfTrailingZeros(check);
+				if (curPos < firstzero)
+				{
+					mask = (1 << (firstzero - curPos) - 1) << firstzero;
+					est += bitCount(letters & mask);
+				}
+				else if (curPos > firstzero)
+				{
+					mask = (1 << (curPos - firstzero) - 1) << curPos;
+					est += bitCount(letters & mask);
+				}
+				mask = (1 << (lastzero - firstzero) - 1) << lastzero;
 				est += bitCount(letters & mask);
 			}
-			else if (curPos > firstzero)
-			{
-				mask = (1 << (curPos - firstzero) - 1) << curPos;
-				est += bitCount(letters & mask);
-			}
-			mask = (1 << (lastzero - firstzero) - 1) << lastzero;
-			est += bitCount(letters & mask);
 
-			byte dist;
-			char curLet, newLet;
 			char[] lets = word.toCharArray();
+			byte dist, mindist;
+			char curLet, newLet;
 			if (letters == 0)
 				curLet = 'A';
 			else
 				curLet = lets[curPos];
-			letDisps[0] = 0;
-			letDisps[1] = 26;
 			mask = 1 << 19;
-			int k = 2;
-			for (int i = 0; i < len; i++)
+
+			if (simple)
 			{
-				if ((letters & mask) == 0)
+				mindist = (byte)0;
+				for (int i = 0; i < len; i++)
 				{
-					newLet = lets[i];
-					dist = (byte)(newLet - curLet);
-					if (dist < 0)
-						dist += 26;
-					letDisps[k++] = dist;
+					if ((letters & mask) == 0)
+					{
+						newLet = lets[i];
+						dist = (byte)(newLet - curLet);
+						if (dist < 0)
+							dist += 26;
+						if (dist > 13)
+							dist = (byte)(26 - dist);
+						if (dist > mindist)
+							mindist = dist;
+					}
+					mask >>>= 1;
 				}
-				mask >>>= 1;
 			}
-			Arrays.sort(letDisps, 0, k);
-			int mindist = 25;
-			for (int i = 1; i < remlets + 1; i++)
+			else
 			{
-				int d1 = letDisps[i];
-				if (d1 > 13)
-					dist = (byte)((26 - d1) * 2 + letDisps[i - 1]);
-				else
-					dist = (byte)(d1 * 2 + 26 - letDisps[i + 1]);
-				if (dist < mindist)
-					mindist = dist;
+				letDisps[0] = 0;
+				letDisps[1] = 26;
+				int k = 2;
+				for (int i = 0; i < len; i++)
+				{
+					if ((letters & mask) == 0)
+					{
+						newLet = lets[i];
+						dist = (byte)(newLet - curLet);
+						if (dist < 0)
+							dist += 26;
+						letDisps[k++] = dist;
+					}
+					mask >>>= 1;
+				}
+				Arrays.sort(letDisps, 0, k);
+				mindist = (byte)25;
+				for (int i = 1; i < k - 1; i++)
+				{
+					int d1 = letDisps[i];
+					if (d1 > 13)
+						dist = (byte)((26 - d1) * 2 + letDisps[i - 1]);
+					else
+						dist = (byte)(d1 * 2 + 26 - letDisps[i + 1]);
+					if (dist < mindist)
+						mindist = dist;
+				}
+				mindist = (byte)min(mindist, min(26 - letDisps[1], letDisps[k - 1]));
 			}
-			mindist = min(mindist, min(letDisps[0], 26 - letDisps[remlets + 1]));
 			est += mindist;
 
 			return (short)est;
@@ -92,7 +119,7 @@ public class YouWin
 		public State(int letters, byte curPos, short weight)
 		{
 			this.letters = letters;
-			this.weight = weight;;
+			this.weight = weight;
 			this.curPos = curPos;
 			this.est = calcEst();
 		}
