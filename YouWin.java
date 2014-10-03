@@ -186,6 +186,34 @@ public class YouWin
 			int newCost = weight + dist + move + 1;
 			return new State(letters | mask, pos, (short)newCost);
 		}
+
+		static int greedyTry()
+		{
+			State cur = new State(), next, curtry;
+			short minweight;
+			int mask;
+			for (byte i = 0; i < len; i++)
+			{
+				mask = 1 << 19;
+				minweight = Short.MAX_VALUE;
+				next = null;
+				for (byte j = 0; j < len; j++)
+				{
+					if ((cur.letters & mask) == 0)
+					{
+						curtry = cur.next(j, mask);
+						if (curtry.weight < minweight)
+						{
+							next = curtry;
+							minweight = curtry.weight;
+						}
+					}
+					mask >>>= 1;
+				}
+				cur = next;
+			}
+			return cur.weight;
+		}
 	}
 
 	static class AlphSort implements Comparator<Byte>
@@ -209,7 +237,7 @@ public class YouWin
 		for (byte i = 0; i < len; i++)
 			order[i] = i;
 		int moves1 = orderCost(order);
-		// System.err.printf("  In Order: %3d\n", moves1);
+		System.err.printf("  In Order: %3d\n", moves1);
 
 		Byte[] pOrder = new Byte[len];
 		for (byte i = 0; i < len; i++)
@@ -218,8 +246,10 @@ public class YouWin
 		for (byte i = 0; i < len; i++)
 			order[i] = pOrder[i].byteValue();
 		int moves2 = orderCost(order);
-		// System.err.printf("Alphabetic: %3d\n", moves2);
-		int moves = min(moves1, moves2);
+		System.err.printf("Alphabetic: %3d\n", moves2);
+		int moves3 = State.greedyTry();
+		System.err.printf("    Greedy: %3d\n", moves3);
+		int moves = min(min(moves1, moves2), moves3);
 		return moves;
 	}
 
