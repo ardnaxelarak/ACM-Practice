@@ -5,7 +5,7 @@ import static java.lang.Math.max;
 import static java.lang.Integer.bitCount;
 public class YouWin
 {
-	static final int PRUNE_WIDTH = 30;
+	static final int LEVELS = 5;
 	static class StateGenerator
 	{
 		private String word;
@@ -171,7 +171,7 @@ public class YouWin
 			letDisps = new byte[len + 2];
 		}
 
-		int greedyTry(int numkeep)
+		PriorityQueue<State> getStates(int letters, int numkeep)
 		{
 			State cur, next;
 			PriorityQueue<State> nextQueue;
@@ -185,26 +185,12 @@ public class YouWin
 				nextQueue = new PriorityQueue<State>(numkeep * len);
 			}
 			LinkedList<State> curQueue = new LinkedList<State>();
-			curQueue.add(new State());
+			nextQueue.add(new State());
 			int mask;
 			boolean contained;
-			for (byte i = 0; i < len; i++)
+			for (byte i = 0; i < letters; i++)
 			{
-				while (!curQueue.isEmpty())
-				{
-					cur = curQueue.poll();
-					mask = 1 << 19;
-					for (byte j = 0; j < len; j++)
-					{
-						if ((cur.letters & mask) == 0)
-						{
-							next = cur.next(j, mask);
-							nextQueue.add(next);
-						}
-						mask >>>= 1;
-					}
-				}
-				while ((numkeep < 0 || curQueue.size() < numkeep) && !nextQueue.isEmpty())
+				while (curQueue.size() < numkeep && !nextQueue.isEmpty())
 				{
 					contained = false;
 					next = nextQueue.poll();
@@ -220,8 +206,29 @@ public class YouWin
 						curQueue.add(next);
 				}
 				nextQueue.clear();
+
+				while (!curQueue.isEmpty())
+				{
+					cur = curQueue.poll();
+					mask = 1 << 19;
+					for (byte j = 0; j < len; j++)
+					{
+						if ((cur.letters & mask) == 0)
+						{
+							next = cur.next(j, mask);
+							nextQueue.add(next);
+						}
+						mask >>>= 1;
+					}
+				}
 			}
-			return curQueue.poll().weight;
+			return nextQueue;
+		}
+
+		int greedyTry(int numkeep)
+		{
+			PriorityQueue<State> q = getStates(len, numkeep);
+			return q.poll().weight;
 		}
 
 		public int orderCost(byte[] order)
@@ -248,12 +255,7 @@ public class YouWin
 				order[i] = pOrder[i].byteValue();
 			int moves2 = orderCost(order);
 			System.err.printf(" Alphabetic: %3d\n", moves2);
-			int moves3 = moves2;
-			for (int i = 5; i <= 60; i += 5)
-			{
-				moves3 = greedyTry(i);
-				System.err.printf("Greedy (%2d): %3d\n", i, moves3);
-			}
+			int moves3;
 			moves3 = greedyTry(1000);
 			System.err.printf(" Big Greedy: %3d\n", moves3);
 			int moves = min(min(moves1, moves2), moves3);
@@ -291,8 +293,9 @@ public class YouWin
 			sg = new StateGenerator(word);
 			solutionValue = sg.quickTries();
 			q = new PriorityQueue<StateGenerator.State>(1 << n);
-			q2 = new PriorityQueue<StateGenerator.State>(n);
-			q.add(sg.new State());
+			q = sg.getStates(min(LEVELS, n), -1);
+			System.err.println("States received");
+			// q.add(sg.new State());
 			while (!q.isEmpty())
 			{
 				cur = q.poll();
@@ -316,7 +319,7 @@ public class YouWin
 							else
 							{
 								if (newitem.getMin() < solutionValue)
-									q2.add(newitem);
+									q.add(newitem);
 							}
 							// System.err.printf("    %s\n", newitem);
 						}
@@ -324,10 +327,6 @@ public class YouWin
 					
 					mask >>>= 1;
 				}
-
-				for (int i = 0; i < PRUNE_WIDTH && !q2.isEmpty(); i++)
-					q.add(q2.poll());
-				q2.clear();
 			}
 			// System.err.println((sol & FIRST_MASK) >>> 44);
 			System.out.println(solutionValue);
