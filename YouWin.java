@@ -56,6 +56,11 @@ public class YouWin
 		{
 			return (weight + est) - (o.weight + o.est);
 		}
+
+		public int getMin()
+		{
+			return weight + est;
+		}
 		
 		public String toString()
 		{
@@ -105,6 +110,24 @@ public class YouWin
 		}
 	}
 
+	static int naiveTry(String word)
+	{
+		char[] lets = word.toCharArray();
+		char curLet = 'A';
+		int moves = word.length();
+		for (char c : lets)
+		{
+			int dist = c - curLet;
+			if (dist < 0)
+				dist += 26;
+			if (dist > 13)
+				dist = 26 - dist;
+			moves += dist;
+			curLet = c;
+		}
+		return moves;
+	}
+
 	public static void main(String[] args)
 	{
 		Scanner sc = new Scanner(System.in);
@@ -118,7 +141,7 @@ public class YouWin
 		{
 			n = word.length();
 			State.setWord(word);
-			solutionValue = Integer.MAX_VALUE;
+			solutionValue = naiveTry(word);
 			q = new PriorityQueue<State>(1 << n);
 			q.add(new State());
 			while (!q.isEmpty())
@@ -143,7 +166,8 @@ public class YouWin
 							}
 							else
 							{
-								q.add(newitem);
+								if (newitem.getMin() < solutionValue)
+									q.add(newitem);
 							}
 							// System.err.printf("    %s\n", toString(newitem, word));
 						}
