@@ -129,6 +129,11 @@ public class YouWin
 			return (weight + est) - (o.weight + o.est);
 		}
 
+		public boolean equivalent(State o)
+		{
+			return (letters == o.letters) && (curPos == o.curPos);
+		}
+
 		public int getMin()
 		{
 			return weight + est;
@@ -187,32 +192,70 @@ public class YouWin
 			return new State(letters | mask, pos, (short)newCost);
 		}
 
-		static int greedyTry()
+		static int greedyTry(int numkeep)
 		{
-			State cur = new State(), next, curtry;
-			short minweight;
+			State cur, next;
+			PriorityQueue<State> nextQueue = new PriorityQueue<State>(numkeep * len);
+			LinkedList<State> curQueue = new LinkedList<State>();
+			curQueue.add(new State());
 			int mask;
 			for (byte i = 0; i < len; i++)
 			{
-				mask = 1 << 19;
-				minweight = Short.MAX_VALUE;
-				next = null;
-				for (byte j = 0; j < len; j++)
+				while (!curQueue.isEmpty())
 				{
-					if ((cur.letters & mask) == 0)
+					cur = curQueue.poll();
+					mask = 1 << 19;
+					for (byte j = 0; j < len; j++)
 					{
-						curtry = cur.next(j, mask);
-						if (curtry.weight < minweight)
+						if ((cur.letters & mask) == 0)
 						{
-							next = curtry;
-							minweight = curtry.weight;
+							next = cur.next(j, mask);
+							nextQueue.add(next);
 						}
+						mask >>>= 1;
 					}
-					mask >>>= 1;
 				}
-				cur = next;
+				while (curQueue.size() < numkeep && !nextQueue.isEmpty())
+				{
+					curQueue.add(nextQueue.poll());
+				}
+				nextQueue.clear();
 			}
+			return curQueue.poll().weight;
+		}
+
+		public static int orderCost(byte[] order)
+		{
+			State cur = new State();
+			for (byte pos : order)
+				cur = cur.next(pos);
 			return cur.weight;
+		}
+
+		public static int quickTries()
+		{
+			byte[] order = new byte[len];
+			for (byte i = 0; i < len; i++)
+				order[i] = i;
+			int moves1 = orderCost(order);
+			System.err.printf("   In Order: %3d\n", moves1);
+
+			Byte[] pOrder = new Byte[len];
+			for (byte i = 0; i < len; i++)
+				pOrder[i] = i;
+			Arrays.sort(pOrder, new AlphSort(word));
+			for (byte i = 0; i < len; i++)
+				order[i] = pOrder[i].byteValue();
+			int moves2 = orderCost(order);
+			System.err.printf(" Alphabetic: %3d\n", moves2);
+			int moves3 = moves2;
+			for (int i = 5; i <= 60; i += 5)
+			{
+				moves3 = State.greedyTry(i);
+				System.err.printf("Greedy (%2d): %3d\n", i, moves3);
+			}
+			int moves = min(min(moves1, moves2), moves3);
+			return moves;
 		}
 	}
 
@@ -230,37 +273,6 @@ public class YouWin
 		}
 	}
 
-	static int naiveTry(String word)
-	{
-		int len = word.length();
-		byte[] order = new byte[len];
-		for (byte i = 0; i < len; i++)
-			order[i] = i;
-		int moves1 = orderCost(order);
-		System.err.printf("  In Order: %3d\n", moves1);
-
-		Byte[] pOrder = new Byte[len];
-		for (byte i = 0; i < len; i++)
-			pOrder[i] = i;
-		Arrays.sort(pOrder, new AlphSort(word));
-		for (byte i = 0; i < len; i++)
-			order[i] = pOrder[i].byteValue();
-		int moves2 = orderCost(order);
-		System.err.printf("Alphabetic: %3d\n", moves2);
-		int moves3 = State.greedyTry();
-		System.err.printf("    Greedy: %3d\n", moves3);
-		int moves = min(min(moves1, moves2), moves3);
-		return moves;
-	}
-
-	static int orderCost(byte[] order)
-	{
-		State cur = new State();
-		for (byte pos : order)
-			cur = cur.next(pos);
-		return cur.weight;
-	}
-
 	public static void main(String[] args)
 	{
 		Scanner sc = new Scanner(System.in);
@@ -274,7 +286,7 @@ public class YouWin
 		{
 			n = word.length();
 			State.setWord(word);
-			solutionValue = naiveTry(word);
+			solutionValue = State.quickTries();
 			q = new PriorityQueue<State>(1 << n);
 			q2 = new PriorityQueue<State>(n);
 			q.add(new State());
