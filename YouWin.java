@@ -1,107 +1,110 @@
 import java.util.*;
 import static java.lang.Math.abs;
 import static java.lang.Math.max;
-import static java.lang.Long.bitCount;
+import static java.lang.Integer.bitCount;
 public class YouWin
 {
-	static final long WEIGHT_MASK = 0xFFFFl;
-	static final long POS_MASK = 0xFF0000l;
-	static final long LETTER_MASK = 0xFFFFF000000l;
-	static final long FIRST_MASK = 0xFF00000000000l;
-	static class StateComparator implements Comparator<Long>
+	static class State implements Comparable<State>
 	{
-		public int compare(Long o1, Long o2)
+		static String word;
+		static int len;
+		static int finmask;
+		short weight;
+		int letters;
+		short curPos;
+		public State(int letters, short curPos, short weight)
 		{
-			long l1 = o1.longValue(), l2 = o2.longValue();
-			long val = (l1 & WEIGHT_MASK) - (l2 & WEIGHT_MASK);
-			if (val > 0)
-				return 1;
-			if (val < 0)
-				return -1;
-			return 0;
+			this.letters = letters;
+			this.weight = weight;;
+			this.curPos = curPos;
 		}
-	}
 
-	static long newItem(long curState, String word, int pos, long mask)
-	{
-		int curCost = (int)(curState & WEIGHT_MASK);
-		int curPos = (int)((curState & POS_MASK) >>> 16);
-		long curBits = (curState & LETTER_MASK);
-		// long firstLetter = (curState & FIRST_MASK);
-		// System.err.printf("%4d %2d %2d %20s\n", curCost, curPos, pos, Long.toBinaryString(curBits >>> 24));
-		char newLet = word.charAt(pos);
-		char curLet = word.charAt(curPos);
-		if (curBits == 0)
+		public int compareTo(State o)
 		{
-			curLet = 'A';
-			// firstLetter = (long)pos << 44;
+			return weight - o.weight;
 		}
-		int dist = newLet - curLet;
-		if (dist < 0)
-			dist += 26;
-		if (dist > 13)
-			dist = 26 - dist;
-		long moveMask = ((1l << abs(curPos - pos)) - 1) << (43 - max(pos, curPos));
-		int move = bitCount(curState & moveMask);
-		// System.err.printf("%2d %d\n", move, dist);
-		int newCost = curCost + dist + move + 1;
-		// return firstLetter | curBits | mask | (pos << 16) | newCost;
-		return curBits | mask | (pos << 16) | newCost;
-	}
+		
+		public String toString()
+		{
+			int mask = 1 << 19;
+			String res = "";
+			for (int i = 0; i < len; i++)
+			{
+				if ((letters & mask) != 0)
+					res += word.charAt(i);
+				if (curPos == i)
+					res += "|";
+				mask >>>= 1;
+			}
+			return String.format("%4d %s", weight, res);
+		}
 
-	static String toString(long state, String word)
-	{
-		int cost = (int)(state & WEIGHT_MASK);
-		int pos = (int)((state & POS_MASK) >> 16);
-		long mask = 1l << 43;
-		String res = "";
-		for (int i = 0; i < word.length(); i++)
+		public boolean isFinal()
 		{
-			if ((state & mask) != 0)
-				res += word.charAt(i);
-			if (pos == i)
-				res += "|";
-			mask >>>= 1;
+			return letters == finmask;
 		}
-		return String.format("%4d %s", cost, res);
+
+		public static void setWord(String word)
+		{
+			State.word = word;
+			len = word.length();
+			finmask = ((1 << len) - 1) << (20 - len);
+		}
+
+		public State next(int pos, int mask)
+		{
+			char newLet = word.charAt(pos);
+			char curLet;
+			if (letters == 0)
+				curLet = 'A';
+			else
+				curLet = word.charAt(curPos);
+			int dist = newLet - curLet;
+			if (dist < 0)
+				dist += 26;
+			if (dist > 13)
+				dist = 26 - dist;
+			int moveMask = ((1 << abs(curPos - pos)) - 1) << (19 - max(pos, curPos));
+			int move = bitCount(letters & moveMask);
+			// System.err.printf("%2d %d\n", move, dist);
+			int newCost = weight + dist + move + 1;
+			return new State(letters | mask, (short)pos, (short)newCost);
+		}
 	}
 
 	public static void main(String[] args)
 	{
 		Scanner sc = new Scanner(System.in);
 		String word = sc.next();
-		PriorityQueue<Long> q;
+		PriorityQueue<State> q;
 		int n;
-		long cur;
+		State cur;
 		int solutionValue;
-		long sol;
-		StateComparator comp = new StateComparator();
-		long checkmask;
+		State sol;
 		while (!word.equals("0"))
 		{
 			n = word.length();
+			State.setWord(word);
 			solutionValue = Integer.MAX_VALUE;
-			sol = 0l;
-			checkmask = ~(((1l << n) - 1) << (44 - n));
-			q = new PriorityQueue<Long>(1 << n, comp);
-			q.add(0l);
+			q = new PriorityQueue<State>(1 << n);
+			q.add(new State(0, (short)0, (short)0));
 			while (!q.isEmpty())
 			{
-				cur = q.poll().longValue();
+				cur = q.poll();
 				// System.err.printf("<<< %s >>>\n", toString(cur, word));
-				if ((cur & WEIGHT_MASK) > solutionValue)
+				if (cur.weight > solutionValue)
 					break;
-				long mask = 1l << 43;
+				int mask = 1 << 19;
 				for (int i = 0; i < n; i++)
 				{
-					if ((cur & mask) == 0)
+					if ((cur.letters & mask) == 0)
 					{
-						long newitem = newItem(cur, word, i, mask);
-						if ((newitem & WEIGHT_MASK) < solutionValue)
+						State newitem = cur.next(i, mask);
+						if (newitem.weight < solutionValue)
 						{
-							if ((newitem | checkmask) == -1l)
+							if (newitem.isFinal())
 							{
-								solutionValue = (int)(newitem & WEIGHT_MASK);
+								solutionValue = newitem.weight;
 								// sol = newitem;
 								// System.err.printf("Found solution %d\n", solutionValue);
 							}
