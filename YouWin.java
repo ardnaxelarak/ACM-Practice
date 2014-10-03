@@ -53,11 +53,6 @@ public class YouWin
 				curLet = 'A';
 			else
 				curLet = lets[curPos];
-			/*
-			int[] letDisps = new int[remlets + 2];
-			letDisps[0] = 0;
-			letDisps[remlets + 1] = 26;
-			*/
 			mask = 1 << 19;
 			int k = 1;
 			for (int i = 0; i < len; i++)
@@ -75,23 +70,7 @@ public class YouWin
 				}
 				mask >>>= 1;
 			}
-			/*
-			Arrays.sort(letDisps);
-			int mindist = 25;
-			for (int i = 1; i < remlets + 1; i++)
-			{
-				int d1 = letDisps[i];
-				if (d1 > 13)
-					dist = (26 - d1) * 2 + letDisps[i - 1];
-				else
-					dist = d1 * 2 + 26 - letDisps[i + 1];
-				if (dist < mindist)
-					mindist = dist;
-			}
-			mindist = min(mindist, min(letDisps[0], letDisps[remlets + 1]));
-			*/
 			est += mindist;
-			// est = mindist;
 
 			return (short)est;
 		}
@@ -141,6 +120,11 @@ public class YouWin
 			finmask = ((1 << len) - 1) << (20 - len);
 		}
 
+		public State next(byte pos)
+		{
+			return next(pos, 1 << (19 - pos));
+		}
+
 		public State next(byte pos, int mask)
 		{
 			char newLet = word.charAt(pos);
@@ -162,22 +146,47 @@ public class YouWin
 		}
 	}
 
+	static class AlphSort implements Comparator<Byte>
+	{
+		private char[] word;
+		public AlphSort(String word)
+		{
+			this.word = word.toCharArray();
+		}
+
+		public int compare(Byte b1, Byte b2)
+		{
+			return word[b1.byteValue()] - word[b2.byteValue()];
+		}
+	}
+
 	static int naiveTry(String word)
 	{
-		char[] lets = word.toCharArray();
-		char curLet = 'A';
-		int moves = word.length();
-		for (char c : lets)
-		{
-			int dist = c - curLet;
-			if (dist < 0)
-				dist += 26;
-			if (dist > 13)
-				dist = 26 - dist;
-			moves += dist;
-			curLet = c;
-		}
+		int len = word.length();
+		byte[] order = new byte[len];
+		for (byte i = 0; i < len; i++)
+			order[i] = i;
+		int moves1 = orderCost(order);
+		// System.err.printf("  In Order: %3d\n", moves1);
+
+		Byte[] pOrder = new Byte[len];
+		for (byte i = 0; i < len; i++)
+			pOrder[i] = i;
+		Arrays.sort(pOrder, new AlphSort(word));
+		for (byte i = 0; i < len; i++)
+			order[i] = pOrder[i].byteValue();
+		int moves2 = orderCost(order);
+		// System.err.printf("Alphabetic: %3d\n", moves2);
+		int moves = min(moves1, moves2);
 		return moves;
+	}
+
+	static int orderCost(byte[] order)
+	{
+		State cur = new State();
+		for (byte pos : order)
+			cur = cur.next(pos);
+		return cur.weight;
 	}
 
 	public static void main(String[] args)
