@@ -1,5 +1,6 @@
 import java.util.*;
 import static java.lang.Math.abs;
+import static java.lang.Math.min;
 import static java.lang.Math.max;
 import static java.lang.Integer.bitCount;
 public class YouWin
@@ -22,34 +23,83 @@ public class YouWin
 			est = (short)len;
 		}
 
+		private short calcEst()
+		{
+			if (letters == finmask)
+				return (short)0;
+			int remlets = len - bitCount(letters);
+			int est = remlets;
+			int check = letters ^ finmask;
+			int firstzero = Integer.numberOfLeadingZeros(check) - 12;
+			int lastzero = 19 - Integer.numberOfTrailingZeros(check);
+			int mask;
+			if (curPos < firstzero)
+			{
+				mask = (1 << (firstzero - curPos) - 1) << firstzero;
+				est += bitCount(letters & mask);
+			}
+			else if (curPos > firstzero)
+			{
+				mask = (1 << (curPos - firstzero) - 1) << curPos;
+				est += bitCount(letters & mask);
+			}
+			mask = (1 << (lastzero - firstzero) - 1) << lastzero;
+			est += bitCount(letters & mask);
+
+			int dist, mindist = 0;
+			char curLet, newLet;
+			char[] lets = word.toCharArray();
+			if (letters == 0)
+				curLet = 'A';
+			else
+				curLet = lets[curPos];
+			int[] letDisps = new int[remlets + 2];
+			letDisps[0] = 0;
+			letDisps[remlets + 1] = 26;
+			mask = 1 << 19;
+			int k = 1;
+			for (int i = 0; i < len; i++)
+			{
+				if ((letters & mask) == 0)
+				{
+					newLet = lets[i];
+					dist = newLet - curLet;
+					if (dist < 0)
+						dist += 26;
+					if (dist > 13)
+						dist = 26 - dist;
+					if (dist > mindist)
+						mindist = dist;
+				}
+				mask >>>= 1;
+			}
+			/*
+			Arrays.sort(letDisps);
+			int mindist = 25;
+			for (int i = 1; i < remlets + 1; i++)
+			{
+				int d1 = letDisps[i];
+				if (d1 > 13)
+					dist = (26 - d1) * 2 + letDisps[i - 1];
+				else
+					dist = d1 * 2 + 26 - letDisps[i + 1];
+				if (dist < mindist)
+					mindist = dist;
+			}
+			mindist = min(mindist, min(letDisps[0], letDisps[remlets + 1]));
+			*/
+			est += mindist;
+			// est = mindist;
+
+			return (short)est;
+		}
+
 		public State(int letters, byte curPos, short weight)
 		{
 			this.letters = letters;
 			this.weight = weight;;
 			this.curPos = curPos;
-			if (letters == finmask)
-				this.est = 0;
-			else
-			{
-				int est = len - bitCount(letters);
-				int check = letters ^ finmask;
-				int firstzero = Integer.numberOfLeadingZeros(check) - 12;
-				int lastzero = 19 - Integer.numberOfTrailingZeros(check);
-				int mask;
-				if (curPos < firstzero)
-				{
-					mask = (1 << (firstzero - curPos) - 1) << firstzero;
-					est += bitCount(letters & mask);
-				}
-				else if (curPos > firstzero)
-				{
-					mask = (1 << (curPos - firstzero) - 1) << curPos;
-					est += bitCount(letters & mask);
-				}
-				mask = (1 << (lastzero - firstzero) - 1) << lastzero;
-				est += bitCount(letters & mask);
-				this.est = (short)est;
-			}
+			this.est = calcEst();
 		}
 
 		public int compareTo(State o)
@@ -74,7 +124,7 @@ public class YouWin
 					res += "|";
 				mask >>>= 1;
 			}
-			return String.format("%4d %s", weight, res);
+			return String.format("%4d (+%2d) %s", weight, est, res);
 		}
 
 		public boolean isFinal()
@@ -147,7 +197,7 @@ public class YouWin
 			while (!q.isEmpty())
 			{
 				cur = q.poll();
-				// System.err.printf("<<< %s >>>\n", toString(cur, word));
+				// System.err.printf("<<< %s >>>\n", cur);
 				if (cur.weight > solutionValue)
 					break;
 				int mask = 1 << 19;
@@ -169,7 +219,7 @@ public class YouWin
 								if (newitem.getMin() < solutionValue)
 									q.add(newitem);
 							}
-							// System.err.printf("    %s\n", toString(newitem, word));
+							// System.err.printf("    %s\n", newitem);
 						}
 					}
 					
