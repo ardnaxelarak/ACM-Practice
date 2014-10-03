@@ -5,12 +5,13 @@ import static java.lang.Math.max;
 import static java.lang.Integer.bitCount;
 public class YouWin
 {
-	static final int PRUNE_WIDTH = 3;
+	static final int PRUNE_WIDTH = 30;
 	static class State implements Comparable<State>
 	{
 		static String word;
 		static int len;
 		static int finmask;
+		private static byte[] letDisps;
 		short weight;
 		short est;
 		int letters;
@@ -47,39 +48,38 @@ public class YouWin
 			mask = (1 << (lastzero - firstzero) - 1) << lastzero;
 			est += bitCount(letters & mask);
 
-			int dist;
+			byte dist;
 			char curLet, newLet;
 			char[] lets = word.toCharArray();
 			if (letters == 0)
 				curLet = 'A';
 			else
 				curLet = lets[curPos];
-			int[] letDisps = new int[remlets + 2];
 			letDisps[0] = 0;
-			letDisps[remlets + 1] = 26;
+			letDisps[1] = 26;
 			mask = 1 << 19;
-			int k = 1;
+			int k = 2;
 			for (int i = 0; i < len; i++)
 			{
 				if ((letters & mask) == 0)
 				{
 					newLet = lets[i];
-					dist = newLet - curLet;
+					dist = (byte)(newLet - curLet);
 					if (dist < 0)
 						dist += 26;
 					letDisps[k++] = dist;
 				}
 				mask >>>= 1;
 			}
-			Arrays.sort(letDisps);
+			Arrays.sort(letDisps, 0, k);
 			int mindist = 25;
 			for (int i = 1; i < remlets + 1; i++)
 			{
 				int d1 = letDisps[i];
 				if (d1 > 13)
-					dist = (26 - d1) * 2 + letDisps[i - 1];
+					dist = (byte)((26 - d1) * 2 + letDisps[i - 1]);
 				else
-					dist = d1 * 2 + 26 - letDisps[i + 1];
+					dist = (byte)(d1 * 2 + 26 - letDisps[i + 1]);
 				if (dist < mindist)
 					mindist = dist;
 			}
@@ -132,6 +132,7 @@ public class YouWin
 			State.word = word;
 			len = word.length();
 			finmask = ((1 << len) - 1) << (20 - len);
+			letDisps = new byte[len + 2];
 		}
 
 		public State next(byte pos)
