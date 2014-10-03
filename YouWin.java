@@ -6,82 +6,61 @@ import static java.lang.Integer.bitCount;
 public class YouWin
 {
 	static final int PRUNE_WIDTH = 30;
-	static class State implements Comparable<State>
+	static class StateGenerator
 	{
-		static String word;
-		static boolean simple = false;
-		static int len;
-		static int finmask;
-		private static byte[] letDisps;
-		short weight;
-		short est;
-		int letters;
-		byte curPos;
-
-		public State()
+		private String word;
+		private int len, finmask;
+		private byte[] letDisps;
+		public class State implements Comparable<State>
 		{
-			letters = 0;
-			curPos = 0;
-			weight = 0;
-			est = calcEst();
-		}
+			short weight;
+			short est;
+			int letters;
+			byte curPos;
 
-		private short calcEst()
-		{
-			if (letters == finmask)
-				return (short)0;
-			int remlets = len - bitCount(letters);
-			int est = remlets;
-			int mask;
-			if (letters != 0)
+			public State()
 			{
-				int check = letters ^ finmask;
-				int firstzero = Integer.numberOfLeadingZeros(check) - 12;
-				int lastzero = 19 - Integer.numberOfTrailingZeros(check);
-				if (curPos < firstzero)
-				{
-					mask = (1 << (firstzero - curPos) - 1) << firstzero;
-					est += bitCount(letters & mask);
-				}
-				else if (curPos > firstzero)
-				{
-					mask = (1 << (curPos - firstzero) - 1) << curPos;
-					est += bitCount(letters & mask);
-				}
-				mask = (1 << (lastzero - firstzero) - 1) << lastzero;
-				est += bitCount(letters & mask);
+				letters = 0;
+				curPos = 0;
+				weight = 0;
+				est = calcEst();
 			}
 
-			char[] lets = word.toCharArray();
-			byte dist, mindist;
-			char curLet, newLet;
-			if (letters == 0)
-				curLet = 'A';
-			else
-				curLet = lets[curPos];
-			mask = 1 << 19;
-
-			if (simple)
+			private short calcEst()
 			{
-				mindist = (byte)0;
-				for (int i = 0; i < len; i++)
+				if (letters == finmask)
+					return (short)0;
+				int remlets = len - bitCount(letters);
+				int est = remlets;
+				int mask;
+				if (letters != 0)
 				{
-					if ((letters & mask) == 0)
+					int check = letters ^ finmask;
+					int firstzero = Integer.numberOfLeadingZeros(check) - 12;
+					int lastzero = 19 - Integer.numberOfTrailingZeros(check);
+					if (curPos < firstzero)
 					{
-						newLet = lets[i];
-						dist = (byte)(newLet - curLet);
-						if (dist < 0)
-							dist += 26;
-						if (dist > 13)
-							dist = (byte)(26 - dist);
-						if (dist > mindist)
-							mindist = dist;
+						mask = (1 << (firstzero - curPos) - 1) << firstzero;
+						est += bitCount(letters & mask);
 					}
-					mask >>>= 1;
+					else if (curPos > firstzero)
+					{
+						mask = (1 << (curPos - firstzero) - 1) << curPos;
+						est += bitCount(letters & mask);
+					}
+					mask = (1 << (lastzero - firstzero) - 1) << lastzero;
+					est += bitCount(letters & mask);
 				}
-			}
-			else
-			{
+
+				char[] lets = word.toCharArray();
+				byte dist, mindist;
+				char curLet, newLet;
+				if (letters == 0)
+					curLet = 'A';
+				else
+					curLet = lets[curPos];
+				mask = 1 << 19;
+
 				letDisps[0] = 0;
 				letDisps[1] = 26;
 				int k = 2;
@@ -110,95 +89,105 @@ public class YouWin
 						mindist = dist;
 				}
 				mindist = (byte)min(mindist, min(26 - letDisps[1], letDisps[k - 1]));
+				est += mindist;
+
+				return (short)est;
 			}
-			est += mindist;
 
-			return (short)est;
-		}
-
-		public State(int letters, byte curPos, short weight)
-		{
-			this.letters = letters;
-			this.weight = weight;
-			this.curPos = curPos;
-			this.est = calcEst();
-		}
-
-		public int compareTo(State o)
-		{
-			return (weight + est) - (o.weight + o.est);
-		}
-
-		public boolean equivalent(State o)
-		{
-			return (letters == o.letters) && (curPos == o.curPos);
-		}
-
-		public int getMin()
-		{
-			return weight + est;
-		}
-		
-		public String toString()
-		{
-			int mask = 1 << 19;
-			String res = "";
-			for (int i = 0; i < len; i++)
+			public State(int letters, byte curPos, short weight)
 			{
-				if ((letters & mask) != 0)
-					res += word.charAt(i);
-				if (curPos == i)
-					res += "|";
-				mask >>>= 1;
+				this.letters = letters;
+				this.weight = weight;
+				this.curPos = curPos;
+				this.est = calcEst();
 			}
-			return String.format("%4d (+%2d) %s", weight, est, res);
+
+			public int compareTo(State o)
+			{
+				return (weight + est) - (o.weight + o.est);
+			}
+
+			public boolean equivalent(State o)
+			{
+				return (letters == o.letters) && (curPos == o.curPos);
+			}
+
+			public int getMin()
+			{
+				return weight + est;
+			}
+			
+			public String toString()
+			{
+				int mask = 1 << 19;
+				String res = "";
+				for (int i = 0; i < len; i++)
+				{
+					if ((letters & mask) != 0)
+						res += word.charAt(i);
+					if (curPos == i)
+						res += "|";
+					mask >>>= 1;
+				}
+				return String.format("%4d (+%2d) %s", weight, est, res);
+			}
+
+			public boolean isFinal()
+			{
+				return letters == finmask;
+			}
+
+			public State next(byte pos)
+			{
+				return next(pos, 1 << (19 - pos));
+			}
+
+			public State next(byte pos, int mask)
+			{
+				char newLet = word.charAt(pos);
+				char curLet;
+				if (letters == 0)
+					curLet = 'A';
+				else
+					curLet = word.charAt(curPos);
+				int dist = newLet - curLet;
+				if (dist < 0)
+					dist += 26;
+				if (dist > 13)
+					dist = 26 - dist;
+				int moveMask = ((1 << abs(curPos - pos)) - 1) << (19 - max(pos, curPos));
+				int move = bitCount(letters & moveMask);
+				// System.err.printf("%2d %d\n", move, dist);
+				int newCost = weight + dist + move + 1;
+				return new State(letters | mask, pos, (short)newCost);
+			}
 		}
 
-		public boolean isFinal()
+		public StateGenerator(String word)
 		{
-			return letters == finmask;
-		}
-
-		public static void setWord(String word)
-		{
-			State.word = word;
+			this.word = word;
 			len = word.length();
 			finmask = ((1 << len) - 1) << (20 - len);
 			letDisps = new byte[len + 2];
 		}
 
-		public State next(byte pos)
-		{
-			return next(pos, 1 << (19 - pos));
-		}
-
-		public State next(byte pos, int mask)
-		{
-			char newLet = word.charAt(pos);
-			char curLet;
-			if (letters == 0)
-				curLet = 'A';
-			else
-				curLet = word.charAt(curPos);
-			int dist = newLet - curLet;
-			if (dist < 0)
-				dist += 26;
-			if (dist > 13)
-				dist = 26 - dist;
-			int moveMask = ((1 << abs(curPos - pos)) - 1) << (19 - max(pos, curPos));
-			int move = bitCount(letters & moveMask);
-			// System.err.printf("%2d %d\n", move, dist);
-			int newCost = weight + dist + move + 1;
-			return new State(letters | mask, pos, (short)newCost);
-		}
-
-		static int greedyTry(int numkeep)
+		int greedyTry(int numkeep)
 		{
 			State cur, next;
-			PriorityQueue<State> nextQueue = new PriorityQueue<State>(numkeep * len);
+			PriorityQueue<State> nextQueue;
+			if (numkeep < 0)
+			{
+				numkeep = Integer.MAX_VALUE;
+				nextQueue = new PriorityQueue<State>(1 << len);
+			}
+			else
+			{
+				nextQueue = new PriorityQueue<State>(numkeep * len);
+			}
 			LinkedList<State> curQueue = new LinkedList<State>();
 			curQueue.add(new State());
 			int mask;
+			boolean contained;
 			for (byte i = 0; i < len; i++)
 			{
 				while (!curQueue.isEmpty())
@@ -215,16 +204,27 @@ public class YouWin
 						mask >>>= 1;
 					}
 				}
-				while (curQueue.size() < numkeep && !nextQueue.isEmpty())
+				while ((numkeep < 0 || curQueue.size() < numkeep) && !nextQueue.isEmpty())
 				{
-					curQueue.add(nextQueue.poll());
+					contained = false;
+					next = nextQueue.poll();
+					for (State curst : curQueue)
+					{
+						if (curst.equivalent(next))
+						{
+							contained = true;
+							break;
+						}
+					}
+					if (!contained)
+						curQueue.add(next);
 				}
 				nextQueue.clear();
 			}
 			return curQueue.poll().weight;
 		}
 
-		public static int orderCost(byte[] order)
+		public int orderCost(byte[] order)
 		{
 			State cur = new State();
 			for (byte pos : order)
@@ -232,7 +232,7 @@ public class YouWin
 			return cur.weight;
 		}
 
-		public static int quickTries()
+		public int quickTries()
 		{
 			byte[] order = new byte[len];
 			for (byte i = 0; i < len; i++)
@@ -251,9 +251,11 @@ public class YouWin
 			int moves3 = moves2;
 			for (int i = 5; i <= 60; i += 5)
 			{
-				moves3 = State.greedyTry(i);
+				moves3 = greedyTry(i);
 				System.err.printf("Greedy (%2d): %3d\n", i, moves3);
 			}
+			moves3 = greedyTry(1000);
+			System.err.printf(" Big Greedy: %3d\n", moves3);
 			int moves = min(min(moves1, moves2), moves3);
 			return moves;
 		}
@@ -277,31 +279,32 @@ public class YouWin
 	{
 		Scanner sc = new Scanner(System.in);
 		String word = sc.next();
-		PriorityQueue<State> q, q2;
+		PriorityQueue<StateGenerator.State> q, q2;
+		StateGenerator sg;
+		StateGenerator.State newitem, cur;
 		int n;
-		State cur;
+		int mask;
 		int solutionValue;
-		State sol;
 		while (!word.equals("0"))
 		{
 			n = word.length();
-			State.setWord(word);
-			solutionValue = State.quickTries();
-			q = new PriorityQueue<State>(1 << n);
-			q2 = new PriorityQueue<State>(n);
-			q.add(new State());
+			sg = new StateGenerator(word);
+			solutionValue = sg.quickTries();
+			q = new PriorityQueue<StateGenerator.State>(1 << n);
+			q2 = new PriorityQueue<StateGenerator.State>(n);
+			q.add(sg.new State());
 			while (!q.isEmpty())
 			{
 				cur = q.poll();
 				// System.err.printf("<<< %s >>>\n", cur);
 				if (cur.weight > solutionValue)
 					break;
-				int mask = 1 << 19;
+				mask = 1 << 19;
 				for (byte i = 0; i < n; i++)
 				{
 					if ((cur.letters & mask) == 0)
 					{
-						State newitem = cur.next(i, mask);
+						newitem = cur.next(i, mask);
 						if (newitem.weight < solutionValue)
 						{
 							if (newitem.isFinal())
