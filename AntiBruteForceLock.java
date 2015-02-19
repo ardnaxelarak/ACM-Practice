@@ -3,45 +3,32 @@ import static java.lang.Math.*;
 
 public class AntiBruteForceLock
 {
-    private static final int[][] digdist = calcDists();
-    private static final int[][] digs = calcDigs();
-
-    private static int[][] calcDigs()
-    {
-        int[][] digs = new int[10000][4];
-        int cur;
-        for (int i = 0; i < 10000; i++)
-        {
-            cur = i;
-            for (int k = 0; k < 4; k++)
-            {
-                digs[i][k] = cur % 10;
-                cur /= 10;
-            }
-        }
-        return digs;
-    }
-
-    private static int[][] calcDists()
-    {
-        int[][] digdist = new int[10][10];
-        for (int i = 0; i < 10; i++)
-            for (int j = 0; j < 10; j++)
-                digdist[i][j] = min(abs(i - j), 10 - abs(i - j));
-
-        return digdist;
-    }
-
-    private static int getDist(int v1, int v2)
+    private static int getDist(int[][] digdist, int v1, int v2)
     {
         int dist = 0;
-        for (int i = 0; i < 4; i++)
-            dist += digdist[digs[v1][i]][digs[v2][i]];
+        int cur1, cur2;
+        cur1 = v1;
+        cur2 = v2;
+
+        for (int k = 0; k < 4; k++)
+        {
+            dist += digdist[cur1 % 10][cur2 % 10];
+            cur1 /= 10;
+            cur2 /= 10;
+        }
+
         return dist;
     }
 
     public static void main(String[] args)
     {
+        /* precompute distance between each pair of digits
+         * not strictly necessary, but should improve performance slighty */
+        int[][] digdist = new int[10][10];
+        for (int i = 0; i < 10; i++)
+            for (int j = 0; j < 10; j++)
+                digdist[i][j] = min(abs(i - j), 10 - abs(i - j));
+
         Scanner sc = new Scanner(System.in);
         int[] values = new int[500];
         int[] shortDist = new int[500];
@@ -57,7 +44,7 @@ public class AntiBruteForceLock
             for (int j = 0; j < N; j++)
             {
                 values[j] = sc.nextInt();
-                total = min(total, getDist(0, values[j]));
+                total = min(total, getDist(digdist, 0, values[j]));
             }
 
             Arrays.fill(conn, 0, N, false);
@@ -73,7 +60,7 @@ public class AntiBruteForceLock
                 {
                     if (conn[k])
                         continue;
-                    shortDist[k] = min(shortDist[k], getDist(values[cur], values[k]));
+                    shortDist[k] = min(shortDist[k], getDist(digdist, values[cur], values[k]));
                     if (weight > shortDist[k])
                     {
                         weight = shortDist[k];
