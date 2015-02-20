@@ -3,12 +3,20 @@ import static java.lang.Math.*;
 
 public class GameStrategy
 {
-    public static int[] getOptions(String options)
+    /* parse string of option set into int array of options */
+    public static int[] getOptions(String options, int pos)
     {
         int[] ret = new int[options.length()];
         int k = 0;
+        int cur;
         for (char c : options.toCharArray())
-            ret[k++] = c - 'a';
+        {
+            cur = c - 'a';
+            if (cur == pos)
+                return null;
+            else
+                ret[k++] = c - 'a';
+        }
         return ret;
     }
 
@@ -17,29 +25,47 @@ public class GameStrategy
         Scanner sc = new Scanner(System.in);
 
         int n = sc.nextInt();
-        int m;
+        int m, k;
         boolean good;
 
         int[][][] options = new int[n][][];
+        int[][] curset;
+        int count;
         int[][] path = new int[n][n];
         for (int i = 0; i < n; i++)
         {
+            /* initialize solution array */
             Arrays.fill(path[i], Integer.MAX_VALUE);
             path[i][i] = 0;
+
+            /* read input data */
             m = sc.nextInt();
-            options[i] = new int[m][];
+            curset = new int[m][];
+            count = 0;
             for (int j = 0; j < m; j++)
             {
-                options[i][j] = getOptions(sc.next());
+                curset[j] = getOptions(sc.next(), i);
+                if (curset[j] != null)
+                    count++;
+            }
+            options[i] = new int[count][];
+            k = 0;
+            for (int j = 0; j < m; j++)
+            {
+                if (curset[j] != null)
+                    options[i][k++] = curset[j];
             }
         }
 
+        /* searching for start/end goals Alice can force in num moves */
         for (int num = 1; num <= 25; num++)
         {
             for (int i = 0; i < n; i++)
             {
                 for (int j = 0; j < n; j++)
                 {
+                    /* ignore goals for which we've already 
+                     * found a shorter path */
                     if (path[i][j] < Integer.MAX_VALUE)
                         continue;
 
@@ -47,16 +73,26 @@ public class GameStrategy
                     {
                         good = true;
 
+                        /* look for an option set in which every choice
+                         * Bob makes leads to a win for Alice in num - 1
+                         * moves */
                         for (int opt : optset)
                         {
                             if (path[opt][j] > num - 1)
                             {
+                                /* Bob has an option that will take longer
+                                 * than num - 1 additional moves for Alice
+                                 * to win */
                                 good = false;
                                 break;
                             }
                         }
+
                         if (good)
                         {
+                            /* Every option Bob takes leads to a win for
+                             * Alice in num - 1 additional moves, or num
+                             * total */
                             path[i][j] = num;
                             break;
                         }
@@ -65,6 +101,7 @@ public class GameStrategy
             }
         }
         
+        /* replace out default MAX_VALUE for not found with -1 */
         for (int i = 0; i < n; i++)
             for (int j = 0; j < n; j++)
                 if (path[i][j] == Integer.MAX_VALUE)
