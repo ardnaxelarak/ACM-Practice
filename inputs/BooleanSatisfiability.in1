@@ -1,0 +1,4 @@
+3
+a AND b
+a OR b
+a OR b AND c OR NOT b AND NOT c
