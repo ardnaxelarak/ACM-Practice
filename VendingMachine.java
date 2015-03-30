@@ -79,6 +79,8 @@ public class VendingMachine
 				for (int val : in[f[index]])
 				{
 					profit[val] -= cur;
+					if (profit[val] <= 0 && care[val])
+						Q.add(val);
 				}
 			}
 		}
