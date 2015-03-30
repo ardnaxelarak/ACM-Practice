@@ -10,6 +10,6 @@ fi
 for file in inputs/$class.in* ; do
     if [ -e "$file" ] ; then
         echo "<<< $file >>>"
-        time java "$class" < "$file"
+        time java -client -Xss8m -Xmx2048m "$class" < "$file"
     fi
 done
