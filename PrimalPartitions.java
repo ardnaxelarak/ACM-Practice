@@ -26,42 +26,27 @@ public class PrimalPartitions
 
 		final int MAX_NUM = 1000000;
 		int[] hp = new int[MAX_NUM + 1];
-		LinkedList<Integer> tries = new LinkedList<Integer>();
 		int cur, factor;
 		ListIterator<Integer> li;
 
 		hp[1] = 0;
-		hp[2] = 2;
 
-		for (int i = 4; i <= MAX_NUM; i++)
-		{
-			hp[i] = 2;
-			tries.add(i + 1);
-		}
+        for (int i = 2; i <= MAX_NUM; i++)
+            hp[i] = i;
 
-		for (int i = 3; i <= MAX_NUM; i++)
-		{
-			if (hp[i] > 0)
-			{
-				factor = hp[i];
-				hp[i] = hp[i / factor];
-			}
-			else
-			{
-				tries.poll();
-				li = tries.listIterator();
-				while (li.hasNext())
-				{
-					cur = li.next();
-					if (cur % i == 0)
-					{
-						li.remove();
-						hp[cur] = i;
-					}
-				}
-				hp[i] = i;
-			}
-		}
+        for (int i = 2; i <= MAX_NUM; i++)
+        {
+            if (hp[i] == i)
+            {
+                for (int j = 2 * i; j <= MAX_NUM; j += i)
+                {
+                    cur = hp[j];
+                    while (cur > i && cur % i == 0)
+                        cur /= i;
+                    hp[j] = cur;
+                }
+            }
+        }
 
 		int[][] D = new int[n][]; // gcd(l_j, ..., l_i)
 		int[][] F = new int[k + 1][n];
